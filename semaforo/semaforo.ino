@@ -129,14 +129,21 @@ int enviarcomandoAT(const char *cmd, int cmd_len){
 // Init ESP8266 only and only Timer 1
 ESP8266Timer ITimer;
 
+unsigned long mili = 0;
+int estado = 0;
 void IRAM_ATTR TimerHandler()
 {
-  Serial.println("verde");
+  mili++;
+  if(mili == 20000){
+   estado = 1;
+   mili = 0;
+  }
 }
 
-#define TIMER_INTERVAL_MS        1000
-#define TIMER_FREQ_HZ        80000
+#define TIMER_INTERVAL_MS        1
+#define TIMER_FREQ_HZ        (float) (1000.0f / TIMER_INTERVAL_MS)
 
+unsigned long lastMillis;
 void setup() {
 
   Serial.begin(9600);  //apensar para debug...  
@@ -171,19 +178,22 @@ void setup() {
 
 
 void loop() {        
- 
-  String tmpvalor = CMD_AT_SEND + String(porta_enviar) + ":" + String(valor) + "\r\n"; //comando montado de SEND conforme datasheet  
-  //valor contém o dado a ser enviado ao network server. Atenção aqui para ser um tamanho pequeno, pois não pode ultrapassar 51 bytes de payload.
-  //Sempre usar o mínimo possível codificado para enviar ao servidor!!!!
-  tmpvalor.toCharArray(comando_send_com_valor,sizeof(comando_send_com_valor));
- 
-  Serial.print("Valor Medido: ");
-  Serial.println(valor);
-  enviarcomandoAT(comando_send_com_valor,strlen(comando_send_com_valor)); //enviar valor via Uplink...  
-  enviarcomandoAT(CMD_AT_RECV,strlen(CMD_AT_RECV)); //existe algum Downlink a ser processado?
- 
-  valor++;
+  if(estado == 1){
+    estado = 0;
+    String tmpvalor = CMD_AT_SEND + String(porta_enviar) + ":" + String(valor) + "\r\n"; //comando montado de SEND conforme datasheet  
+    //valor contém o dado a ser enviado ao network server. Atenção aqui para ser um tamanho pequeno, pois não pode ultrapassar 51 bytes de payload.
+    //Sempre usar o mínimo possível codificado para enviar ao servidor!!!!
+    tmpvalor.toCharArray(comando_send_com_valor,sizeof(comando_send_com_valor));
   
-  delay(20000); //aguardar 20s (tempo mínimo entre transmissoes AU915 - se puder ser um intervalo maior deve-se adotar...) para a próxima transmissão
-  //Ao invés de delay() o ideal é lidar com interrupção de tempo, watchdogs e recurso de millis(), pois o delay() interrompe o microcontrolador de fazer outra coisa (ex: realizar coleta de valores dos sensores...)
+    Serial.print("Valor Medido: ");
+    Serial.println(valor);
+    enviarcomandoAT(comando_send_com_valor,strlen(comando_send_com_valor)); //enviar valor via Uplink...  
+    enviarcomandoAT(CMD_AT_RECV,strlen(CMD_AT_RECV)); //existe algum Downlink a ser processado?
+  
+    valor++;
+    
+    //delay(20000); //aguardar 20s (tempo mínimo entre transmissoes AU915 - se puder ser um intervalo maior deve-se adotar...) para a próxima transmissão
+    //Ao invés de delay() o ideal é lidar com interrupção de tempo, watchdogs e recurso de millis(), pois o delay() interrompe o microcontrolador de fazer outra coisa (ex: realizar coleta de valores dos sensores...)
+  }
 }
+  
