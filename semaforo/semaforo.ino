@@ -134,7 +134,7 @@ int estado = 0;
 void IRAM_ATTR TimerHandler()
 {
   mili++;
-  if(mili == 20000){
+  if(mili == 20){
    estado = 1;
    mili = 0;
   }
