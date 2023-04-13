@@ -22,7 +22,7 @@ SoftwareSerial serialAT;
 
 #ifdef WIFI
   #include <ESP8266WiFi.h>
-  #define WIFI_NAME "Donald Trump"
+  #define WIFI_NAME "DONALD TRUMP"
   #define WIFI_PASS "002393929"
 #endif
 
@@ -151,7 +151,7 @@ void IRAM_ATTR TimerHandler()
   }
 }
 
-#define TIMER_INTERVAL_MS        1
+#define TIMER_INTERVAL_MS        1000
 #define TIMER_FREQ_HZ        (float) (1000.0f / TIMER_INTERVAL_MS)
 
 unsigned long lastMillis;
@@ -222,13 +222,12 @@ void loop() {
     #endif
 
     #ifdef WIFI
-
+    //https://new-toyota.vercel.app/
     #endif
 
     valor++;
     
-    //delay(20000); //aguardar 20s (tempo mínimo entre transmissoes AU915 - se puder ser um intervalo maior deve-se adotar...) para a próxima transmissão
-    //Ao invés de delay() o ideal é lidar com interrupção de tempo, watchdogs e recurso de millis(), pois o delay() interrompe o microcontrolador de fazer outra coisa (ex: realizar coleta de valores dos sensores...)
+    //https://arduino.esp8266.com/stable/package_esp8266com_index.json
   }
 }
   
