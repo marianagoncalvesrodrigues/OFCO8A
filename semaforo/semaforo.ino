@@ -17,6 +17,15 @@ const char *STATUS_AT_ERROR = "AT_ERROR";
 
 SoftwareSerial serialAT;
 
+#define WIFI
+//#define LORA
+
+#ifdef WIFI
+  #include <ESP8266WiFi.h>
+  #define WIFI_NAME "Donald Trump"
+  #define WIFI_PASS "002393929"
+#endif
+
 const byte tx=12; //D6 impresso na placa
 const byte rx=13; //D7 impresso na placa
 const int porta_enviar=2; //INDICAR AQUI QUAL FPORT DA MSG LORA A SER USADA...
@@ -129,14 +138,16 @@ int enviarcomandoAT(const char *cmd, int cmd_len){
 // Init ESP8266 only and only Timer 1
 ESP8266Timer ITimer;
 
-unsigned long mili = 0;
+#define TIMER_SEND_SIG 3
+
+unsigned long sec = 0;
 int estado = 0;
 void IRAM_ATTR TimerHandler()
 {
-  mili++;
-  if(mili == 20){
+  sec++;
+  if(sec == TIMER_SEND_SIG){
    estado = 1;
-   mili = 0;
+   sec = 0;
   }
 }
 
@@ -147,8 +158,7 @@ unsigned long lastMillis;
 void setup() {
 
   Serial.begin(9600);  //apensar para debug...  
-
-    // Interval in microsecs
+  
   if (ITimer.attachInterruptInterval(TIMER_INTERVAL_MS * 1000, TimerHandler)) {
     lastMillis = millis();
     Serial.print(F("Starting  ITimer OK, millis() = ")); Serial.println(lastMillis);
@@ -163,15 +173,33 @@ void setup() {
     Serial.println("Can't set ITimer. Select another freq. or timer");
   }
 
-  serialAT.begin(9600, SWSERIAL_8N1, rx, tx, false, 256); //adaptado de exemplos do diretorio do pacote SoftwareSerial na pasta esp8266 (arduino-esp8266)
- 
-  delay(1000);  
-  Serial.print("Esperando Join: ");
-  while(enviarcomandoAT(CMD_AT_VERJOIN,strlen(CMD_AT_VERJOIN))==-1){   
-    delay(1000);
-    Serial.print(".");
-  }
-  Serial.println(" Feito Join!!!");  
+  #ifdef LORA
+    serialAT.begin(9600, SWSERIAL_8N1, rx, tx, false, 256); //adaptado de exemplos do diretorio do pacote SoftwareSerial na pasta esp8266 (arduino-esp8266)
+  
+    delay(1000);  
+    Serial.print("Esperando Join: ");
+    while(enviarcomandoAT(CMD_AT_VERJOIN,strlen(CMD_AT_VERJOIN))==-1){   
+      delay(1000);
+      Serial.print(".");
+    }
+    Serial.println(" Feito Join!!!");  
+  #endif
+
+  #ifdef WIFI
+    WiFi.begin(WIFI_NAME, WIFI_PASS);
+
+    Serial.print("Connecting");
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+
+    Serial.print("Connected, IP address: ");
+    Serial.println(WiFi.localIP());
+  #endif
+
   valor = 0;
 }
 
@@ -179,6 +207,7 @@ void setup() {
 
 void loop() {        
   if(estado == 1){
+    Serial.printf("Connection status: %d\n", WiFi.status());
     estado = 0;
     String tmpvalor = CMD_AT_SEND + String(porta_enviar) + ":" + String(valor) + "\r\n"; //comando montado de SEND conforme datasheet  
     //valor contém o dado a ser enviado ao network server. Atenção aqui para ser um tamanho pequeno, pois não pode ultrapassar 51 bytes de payload.
@@ -187,9 +216,15 @@ void loop() {
   
     Serial.print("Valor Medido: ");
     Serial.println(valor);
-    enviarcomandoAT(comando_send_com_valor,strlen(comando_send_com_valor)); //enviar valor via Uplink...  
-    enviarcomandoAT(CMD_AT_RECV,strlen(CMD_AT_RECV)); //existe algum Downlink a ser processado?
-  
+    #ifdef LORA
+      enviarcomandoAT(comando_send_com_valor,strlen(comando_send_com_valor)); //enviar valor via Uplink...  
+      enviarcomandoAT(CMD_AT_RECV,strlen(CMD_AT_RECV)); //existe algum Downlink a ser processado?
+    #endif
+
+    #ifdef WIFI
+
+    #endif
+
     valor++;
     
     //delay(20000); //aguardar 20s (tempo mínimo entre transmissoes AU915 - se puder ser um intervalo maior deve-se adotar...) para a próxima transmissão
