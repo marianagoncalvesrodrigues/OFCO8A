@@ -22,10 +22,14 @@ SoftwareSerial serialAT;
 
 #ifdef WIFI
   #include <ESP8266WiFi.h>
+  #include <ESP8266HTTPClient.h>
+  #include <ESP8266WiFiMulti.h>
+  #include <WiFiClient.h>
   #define WIFI_NAME "Donald Trump"
   #define WIFI_PASS "002393929"
 #endif
 
+String servername = "https://web-production-cc72.up.railway.app/maquinas";
 const byte tx=12; //D6 impresso na placa
 const byte rx=13; //D7 impresso na placa
 const int porta_enviar=2; //INDICAR AQUI QUAL FPORT DA MSG LORA A SER USADA...
@@ -189,14 +193,12 @@ void setup() {
     WiFi.begin(WIFI_NAME, WIFI_PASS);
 
     Serial.print("Connecting");
-    while (WiFi.status() != WL_CONNECTED)
-    {
+    while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
     }
-    Serial.println();
-
-    Serial.print("Connected, IP address: ");
+    Serial.println("");
+    Serial.print("Connected! IP address: ");
     Serial.println(WiFi.localIP());
   #endif
 
@@ -207,15 +209,15 @@ void setup() {
 
 void loop() {        
   if(estado == 1){
-    Serial.printf("Connection status: %d\n", WiFi.status());
+    //Serial.printf("Connection status: %d\n", WiFi.status());
     estado = 0;
     String tmpvalor = CMD_AT_SEND + String(porta_enviar) + ":" + String(valor) + "\r\n"; //comando montado de SEND conforme datasheet  
     //valor contém o dado a ser enviado ao network server. Atenção aqui para ser um tamanho pequeno, pois não pode ultrapassar 51 bytes de payload.
     //Sempre usar o mínimo possível codificado para enviar ao servidor!!!!
     tmpvalor.toCharArray(comando_send_com_valor,sizeof(comando_send_com_valor));
   
-    Serial.print("Valor Medido: ");
-    Serial.println(valor);
+    //Serial.print("Valor Medido: ");
+    //Serial.println(valor);
     #ifdef LORA
       enviarcomandoAT(comando_send_com_valor,strlen(comando_send_com_valor)); //enviar valor via Uplink...  
       enviarcomandoAT(CMD_AT_RECV,strlen(CMD_AT_RECV)); //existe algum Downlink a ser processado?
@@ -230,5 +232,41 @@ void loop() {
     //delay(20000); //aguardar 20s (tempo mínimo entre transmissoes AU915 - se puder ser um intervalo maior deve-se adotar...) para a próxima transmissão
     //Ao invés de delay() o ideal é lidar com interrupção de tempo, watchdogs e recurso de millis(), pois o delay() interrompe o microcontrolador de fazer outra coisa (ex: realizar coleta de valores dos sensores...)
   }
+   // wait for WiFi connection
+  if ((WiFi.status() == WL_CONNECTED)) {
+
+    WiFiClient client;
+    HTTPClient http;
+
+    Serial.print("[HTTP] begin...\n");
+    // configure traged server and url
+    http.begin(client, servername);  // HTTP
+    http.addHeader("Content-Type", "application/json");
+
+    Serial.print("[HTTP] POST...\n");
+    // start connection and send HTTP header and body
+    int httpCode = http.POST("{\"valor\":\""+ String(valor)+ "\"}");
+
+    Serial.println("HTTPCODE: " + httpCode);
+
+    // httpCode will be negative on error
+    if (httpCode > 0) {
+      // HTTP header has been send and Server response header has been handled
+      Serial.printf("[HTTP] POST... code: %d\n", httpCode);
+
+      // file found at server
+      if (httpCode == HTTP_CODE_OK) {
+        const String& payload = http.getString();
+        Serial.println("received payload:\n<<");
+        Serial.println(payload);
+        Serial.println(">>");
+      }
+    } else {
+      Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+    }
+
+    http.end();
+  }
+
 }
   
